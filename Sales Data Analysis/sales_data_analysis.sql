@@ -77,5 +77,36 @@ revenue_growth_rate as
 )
 select * from revenue_growth_rate;
 
+-- RFM(recency, frequency monetary analysis)
+with rfm as 
+(
+	select 
+		CUSTOMERNAME, 
+		sum(sales) MonetaryValue,
+		avg(sales) AvgMonetaryValue,
+		count(ORDERNUMBER) Frequency,
+		max(ORDERDATE) last_order_date,
+		(select max(ORDERDATE) from practice.sales_data) max_order_date,
+		DATEDIFF((select max(ORDERDATE) from practice.sales_data),max(ORDERDATE)) Recency
+	from practice.sales_data
+	group by CUSTOMERNAME
+),
+rfm_calc as
+(
+	select r.*,
+		NTILE(4) OVER (order by Recency desc) rfm_recency,
+		NTILE(4) OVER (order by Frequency) rfm_frequency,
+		NTILE(4) OVER (order by MonetaryValue) rfm_monetary
+	from rfm r
+)
+select c.*, rfm_recency+ rfm_frequency+ rfm_monetary as rfm_cell,
+concat(rfm_recency, rfm_frequency, rfm_monetary) rfm_cell_string,
+case
+	when rfm_recency+ rfm_frequency+ rfm_monetary >= 10 then "High Level Customer"
+	when rfm_recency+ rfm_frequency+ rfm_monetary < 6 then "Low Level Customer"
+	else "Mid Level Customer"
+end as rfm_level
+from rfm_calc c;
+
 
 
